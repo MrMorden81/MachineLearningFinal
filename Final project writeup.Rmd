@@ -1,0 +1,51 @@
+---
+title: "Practical Machine Learning writeup"
+author: "Alex A."
+date: "January 30, 2016"
+output: html_document
+---
+
+#Executive summary
+
+In this project, we are to build a model using machine learning techniques in order to determine how well a certain exercise was done.  The data was gathered from a set of gyroscopes attached to the person's body.  The quality of exercise was rated A through E.
+
+#Exploratory data analysis
+
+Exploratory data analysis was performed by inspection of the data after loading it into a spreadsheet.  Inspection reveals that many of the columns are patently unsuitable for inclusion in a predictive model.  Column 1, for example, is just a sequential label.  Other columns are timestamps, or mostly contain blank rows.  Thus, we ignore these columns in favor columns that contain numerical data that is presumably gathered or derived from the accelerometers.
+
+#Model selection
+
+Unfortunately, I could not find a codebook for this data, so I couldn't be sure exactly what these rows of numerical data correspond to.  Thus, as a first attempt, I decided to simply include all columns that seem to contain data from the accelerometers.  Since this is a classification problem, I settled upon the Random Forest approach as I have seen this approach work particularly well on classification problems.  Cross-validation is also built into the algorithm, so that is another advantage of the Random Forest.  Random Forests also automatically take nonlinearity into account.  Because of these advantages, I expect a very small out of sample error.
+
+Random Forests are not without their disadvantages, however.  They are quite computationally intensive.  Fortunately, thanks to my video gaming hobby, my personal computer has a rather powerful CPU (and my parents said nothing good would come of my hobby.)  I also found a useful tutorial on how to enable multithreading at this website:  <https://github.com/lgreski/datasciencectacontent/blob/master/markdown/pml-randomForestPerformance.md>
+
+#Code
+
+	
+	library(caret)
+	training <- read.csv('C:\\Res\\R\\pml-training.csv')
+	# Set up multicore for faster processing as per the instructions found at
+	# https://github.com/lgreski/datasciencectacontent/blob/master/markdown/pml-randomForestPerformance.md
+	library(parallel)
+	library(doParallel)
+	cluster <- makeCluster(detectCores() - 1)
+	registerDoParallel(cluster)
+	
+	#Configure trainControl
+	fit_control <- trainControl(method='cv', number=10, allowParallel=TRUE)
+	
+	#select out columns to be used in the fit, only columns with numerical data in all rows that are not timestamps
+	#or something else that is obviously going to make for a useless predictor
+	columns_in_fit = c(2, 8:10, 37:48, 60:68, 84:86, 113:124, 140, 151:159)
+	predictors <- training[,columns_in_fit]
+	result <- training[,160]
+	rf_model <- train(predictors, result, method='rf', data=training, trControl=fit_control)
+	stopCluster(cluster)
+	testing <- read.csv('C:\\Res\\R\\pml-testing.csv')
+	prediction <- predict(rf_model, newdata=testing)
+
+
+
+#Results
+
+The model thus generated successfully predicted 20/20 in the test set.
